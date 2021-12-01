@@ -18,3 +18,10 @@ export const createChat = gql`
       title
     }
   }`
+
+export const getChat = gql`
+  query Query($id: Int!) {
+    chat(id: $id) {
+      title
+    }
+  }`

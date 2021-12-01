@@ -6,6 +6,7 @@ import { useMutation } from '@apollo/client'
 import { createChat } from '../logic/client'
 import { Chat, MutationCreateChatArgs } from '../logic/generated/graphql'
 import { useState } from 'react'
+import { useRouter } from 'next/router'
 
 const Home: NextPage = () => {
   var [state, changeState] = useState<HomeState>({title: ""});
@@ -28,10 +29,16 @@ const CreateChatButton: React.FC<CreateChatButtonProps> = (props) => {
     data,
     loading,
     error
-  }] = useMutation<Chat, MutationCreateChatArgs>(createChat, {variables: {title: props.title}});
+  }] = useMutation<{createChat: Chat}, MutationCreateChatArgs>(createChat, {variables: {title: props.title}});
+
+  const router = useRouter();
 
   if (error){
     console.log("Error:", error);
+  }
+
+  if (data){
+    router.push(`/chat/${data.createChat.id}`);
   }
 
   return (
