@@ -4,54 +4,74 @@ import { Text, Center, Box, Spinner, Divider, Input, Button } from '@chakra-ui/r
 import { Chat, QueryChatArgs } from '../../logic/generated/graphql'
 import { ApolloError, useQuery } from '@apollo/client'
 import { getChat } from '../../logic/client'
+import { useEffect, useState } from 'react'
+import { HubConnection, HubConnectionBuilder } from '@microsoft/signalr'
 
-const Chat: NextPage<Chat> = (props) => {
-  const router = useRouter()
-  const { chatid } = router.query
-
-  var chat: Chat | undefined;
-  var loading = false;
-  var error: ApolloError | undefined;
-
+const Chat: NextPage = () => {
+  const router = useRouter();
+  const chatid = router.query["chatid"];
   var chatid_number = Number.parseInt(chatid as string);
+  var { loading, error, data } = useQuery<{ chat: Chat }, QueryChatArgs>(getChat, { variables: { id: chatid_number } });
+  const [connection, setConnection] = useState<HubConnection | null>(null);
 
-  if(props.id == null){
-    var status = useQuery<{chat: Chat}, QueryChatArgs>(getChat, {variables: {id: chatid_number}});
-    chat = status.data?.chat;
-    loading = status.loading;
-    error = status.error;
-  }
+  var chat = data?.chat;
 
-  if(loading){
+  useEffect(() => {
+    const newConnection = new HubConnectionBuilder()
+      .withUrl('https://localhost:5001/hubs/chat')
+      .withAutomaticReconnect()
+      .build();
+
+    setConnection(newConnection);
+  }, []);
+
+  useEffect(() => {
+    if (connection) {
+      connection.start()
+        .then(result => {
+          console.log('Connected!');
+
+          connection.on('ReceiveMessage', message => {
+            const updatedChat = [...latestChat.current];
+            updatedChat.push(message);
+
+            setChat(updatedChat);
+          });
+        })
+        .catch(e => console.log('Connection failed: ', e));
+    }
+  }, [connection]);
+
+  if (loading) {
     return (
       <Center>
-        <Spinner size="3xl"/>
+        <Spinner />
       </Center>
     )
   }
 
-  if(chat == null || error != null){
+  if (chat == null || error != null) {
     return (
-    <Center>
-      Error
-    </Center>
+      <Center>
+        <Text>Error</Text>
+      </Center>
     )
   }
 
   return (
-    <Box w="30em" borderStyle="solid" borderWidth="0.1em" display="flex" flexDirection="column">
-      <ChatHeader chat={chat}/>
-      <Divider/>
+    <Box borderStyle="solid" borderWidth="0.1em" display="flex" flexDirection="column">
+      <ChatHeader chat={chat} />
+      <Divider />
       <Box flexGrow="1" overflowY="scroll" padding="0.4em 1em 1em 1em">
-        {MockChatEntries.map((entry, i) => <ChatEntry key={i} entry={entry}/>)}
+        {MockChatEntries.map((entry, i) => <ChatEntry key={i} entry={entry} />)}
       </Box>
-      <Divider/>
-      <ChatInput/>
+      <Divider />
+      <ChatInput />
     </Box>
   )
 }
 
-const ChatHeader: NextPage<{chat:Chat}> = (props) => {
+const ChatHeader: NextPage<{ chat: Chat }> = (props) => {
   const router = useRouter()
   return (
     <Box display="flex" justifyContent="space-between" margin="1em">
@@ -67,13 +87,13 @@ const ChatHeader: NextPage<{chat:Chat}> = (props) => {
 const ChatInput: NextPage = () => {
   return (
     <Box display="flex" margin="1em">
-      <Input marginRight="1em" placeholder="Type your message"/>
+      <Input marginRight="1em" placeholder="Type your message" />
       <Button colorScheme='teal'>Chat</Button>
     </Box>
   )
 }
 
-const ChatEntry: React.FC<{entry:ChatEntry}> = (props) => {
+const ChatEntry: React.FC<{ entry: ChatEntry }> = (props) => {
   return (
     <Box display="flex" marginTop="0.6em">
       <Text fontSize="15px" fontWeight='bold'>{props.entry.username}:</Text>
@@ -88,20 +108,20 @@ type ChatEntry = {
 }
 
 const MockChatEntries: ChatEntry[] = [
-  {username: "GuyA", message:"Lorem Ipsum is simply dummy text of the printing and typesetting industry."},
-  {username: "GuyB", message:"Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. It has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. It was popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum passages, and more recently with desktop publishing software like Aldus PageMaker including versions of Lorem Ipsum."},
-  {username: "GuyC", message:"Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make."},
-  {username: "GuyD", message:"Lorem Ipsum is simply dummy text of the printing and typesetting industry."},
-  {username: "GuyD", message:"Lorem Ipsum is simply dummy text of the printing and typesetting industry."},
-  {username: "GuyD", message:"Lorem Ipsum is simply dummy text of the printing and typesetting industry."},
-  {username: "GuyD", message:"Lorem Ipsum is simply dummy text of the printing and typesetting industry."},
-  {username: "GuyD", message:"Lorem Ipsum is simply dummy text of the printing and typesetting industry."},
-  {username: "GuyD", message:"Lorem Ipsum is simply dummy text of the printing and typesetting industry."},
-  {username: "GuyD", message:"Lorem Ipsum is simply dummy text of the printing and typesetting industry."},
-  {username: "GuyD", message:"Lorem Ipsum is simply dummy text of the printing and typesetting industry."},
-  {username: "GuyD", message:"Lorem Ipsum is simply dummy text of the printing and typesetting industry."},
-  {username: "GuyD", message:"Lorem Ipsum is simply dummy text of the printing and typesetting industry."},
-  {username: "GuyD", message:"Lorem Ipsum is simply dummy text of the printing and typesetting industry."},
+  { username: "GuyA", message: "Lorem Ipsum is simply dummy text of the printing and typesetting industry." },
+  { username: "GuyB", message: "Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. It has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. It was popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum passages, and more recently with desktop publishing software like Aldus PageMaker including versions of Lorem Ipsum." },
+  { username: "GuyC", message: "Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make." },
+  { username: "GuyD", message: "Lorem Ipsum is simply dummy text of the printing and typesetting industry." },
+  { username: "GuyD", message: "Lorem Ipsum is simply dummy text of the printing and typesetting industry." },
+  { username: "GuyD", message: "Lorem Ipsum is simply dummy text of the printing and typesetting industry." },
+  { username: "GuyD", message: "Lorem Ipsum is simply dummy text of the printing and typesetting industry." },
+  { username: "GuyD", message: "Lorem Ipsum is simply dummy text of the printing and typesetting industry." },
+  { username: "GuyD", message: "Lorem Ipsum is simply dummy text of the printing and typesetting industry." },
+  { username: "GuyD", message: "Lorem Ipsum is simply dummy text of the printing and typesetting industry." },
+  { username: "GuyD", message: "Lorem Ipsum is simply dummy text of the printing and typesetting industry." },
+  { username: "GuyD", message: "Lorem Ipsum is simply dummy text of the printing and typesetting industry." },
+  { username: "GuyD", message: "Lorem Ipsum is simply dummy text of the printing and typesetting industry." },
+  { username: "GuyD", message: "Lorem Ipsum is simply dummy text of the printing and typesetting industry." },
 ]
 
 export default Chat
