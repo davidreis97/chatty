@@ -1,4 +1,5 @@
 using ChatHost.Hubs;
+using ChatHost.Logic;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -9,13 +10,14 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddSignalR();
+builder.Services.AddScoped<IChatRoomManager,ChatRoomManager>();
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("DevPermission", policy =>
     {
         policy.AllowAnyHeader()
             .AllowAnyMethod()
-            .AllowAnyOrigin()
+            .WithOrigins("http://localhost:3000")
             .AllowCredentials();
     });
 });
@@ -29,9 +31,9 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseCors("ClientPermission");
+app.UseCors("DevPermission");
 
-app.UseHttpsRedirection();
+//app.UseHttpsRedirection();
 
 app.UseRouting();
 

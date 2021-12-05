@@ -11,14 +11,17 @@ const Chat: NextPage = () => {
   const router = useRouter();
   const chatid = router.query["chatid"];
   var chatid_number = Number.parseInt(chatid as string);
+  
   var { loading, error, data } = useQuery<{ chat: Chat }, QueryChatArgs>(getChat, { variables: { id: chatid_number } });
+  
   const [connection, setConnection] = useState<HubConnection | null>(null);
+  const [chatLog, setChatLog] = useState<ChatEntry[]>([]);
 
   var chat = data?.chat;
 
   useEffect(() => {
     const newConnection = new HubConnectionBuilder()
-      .withUrl('https://localhost:5001/hubs/chat')
+      .withUrl('http://localhost:5135/chathub')
       .withAutomaticReconnect()
       .build();
 
@@ -32,11 +35,13 @@ const Chat: NextPage = () => {
           console.log('Connected!');
 
           connection.on('ReceiveMessage', message => {
-            const updatedChat = [...latestChat.current];
+            const updatedChat = [...chatLog];
             updatedChat.push(message);
 
-            setChat(updatedChat);
+            setChatLog(updatedChat);
           });
+
+          connection.send("ConnectToChat", chatid_number);
         })
         .catch(e => console.log('Connection failed: ', e));
     }
@@ -63,10 +68,10 @@ const Chat: NextPage = () => {
       <ChatHeader chat={chat} />
       <Divider />
       <Box flexGrow="1" overflowY="scroll" padding="0.4em 1em 1em 1em">
-        {MockChatEntries.map((entry, i) => <ChatEntry key={i} entry={entry} />)}
+        {chatLog.map((entry, i) => <ChatEntry key={i} entry={entry} />)}
       </Box>
       <Divider />
-      <ChatInput />
+      <ChatInput connection={connection} />
     </Box>
   )
 }
@@ -84,13 +89,19 @@ const ChatHeader: NextPage<{ chat: Chat }> = (props) => {
   )
 }
 
-const ChatInput: NextPage = () => {
+const ChatInput: NextPage<{connection: HubConnection | null}> = (props) => {
+  var [newMessage,setNewMessage] = useState<string>("");
+
   return (
     <Box display="flex" margin="1em">
-      <Input marginRight="1em" placeholder="Type your message" />
-      <Button colorScheme='teal'>Chat</Button>
+      <Input marginRight="1em" placeholder="Type your message" onChange={(evt) => setNewMessage((_) => evt.target.value)}/>
+      <Button colorScheme='teal' onClick={() => sendMessage(props.connection as HubConnection, newMessage)}>Chat</Button>
     </Box>
   )
+}
+
+function sendMessage(connection: HubConnection, newMessage: string){
+  connection.send("SendMessage", newMessage);
 }
 
 const ChatEntry: React.FC<{ entry: ChatEntry }> = (props) => {
