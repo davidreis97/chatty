@@ -10,7 +10,7 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddSignalR();
-builder.Services.AddScoped<IChatRoomManager,ChatRoomManager>();
+builder.Services.AddSingleton<IChatRoomManager,ChatRoomManager>();
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("DevPermission", policy =>

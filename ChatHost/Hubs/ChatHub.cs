@@ -16,12 +16,14 @@ public class ChatHub : Hub
 
     public async void ConnectToChat(string chatId)
     {
+        Guard.Against.NullOrWhiteSpace(chatId, nameof(chatId));
         _chatRoomManager.ConnectToChat(Context.ConnectionId, chatId);
         await Groups.AddToGroupAsync(Context.ConnectionId, chatId);
     }
 
     public async Task SendMessage(string message)
     {
+        Guard.Against.NullOrWhiteSpace(message, nameof(message));
         var chatId = _chatRoomManager.GetChatByClient(Context.ConnectionId);
         if (string.IsNullOrEmpty(chatId)) 
         {
@@ -29,8 +31,8 @@ public class ChatHub : Hub
             return;
         }
 
-        var othersInChat = Clients.OthersInGroup(chatId);
-        await othersInChat.SendAsync("ReceiveMessage", new ChatMessage() { message=message, username=Context.ConnectionId});
+        var group = Clients.Group(chatId);
+        await group.SendAsync("ReceiveMessage", new ChatMessage() { message=message, username=Context.ConnectionId});
     }
 
     public struct ChatMessage

@@ -2,18 +2,18 @@ import { NextPage } from 'next'
 import { useRouter } from 'next/router'
 import { Text, Center, Box, Spinner, Divider, Input, Button } from '@chakra-ui/react'
 import { Chat, QueryChatArgs } from '../../logic/generated/graphql'
-import { ApolloError, useQuery } from '@apollo/client'
+import { useLazyQuery } from '@apollo/client'
 import { getChat } from '../../logic/client'
 import { useEffect, useState } from 'react'
 import { HubConnection, HubConnectionBuilder } from '@microsoft/signalr'
 
 const Chat: NextPage = () => {
   const router = useRouter();
-  const chatid = router.query["chatid"];
-  var chatid_number = Number.parseInt(chatid as string);
+  const chatidString = router.query['chatid'];
+  var chatid = Number.parseInt(chatidString as string);
   
-  var { loading, error, data } = useQuery<{ chat: Chat }, QueryChatArgs>(getChat, { variables: { id: chatid_number } });
-  
+  var [getChatExecute, { loading, error, data }] = useLazyQuery<{ chat: Chat }, QueryChatArgs>(getChat);
+
   const [connection, setConnection] = useState<HubConnection | null>(null);
   const [chatLog, setChatLog] = useState<ChatEntry[]>([]);
 
@@ -29,23 +29,29 @@ const Chat: NextPage = () => {
   }, []);
 
   useEffect(() => {
-    if (connection) {
-      connection.start()
-        .then(result => {
-          console.log('Connected!');
+    if(!chatid) return;
 
-          connection.on('ReceiveMessage', message => {
-            const updatedChat = [...chatLog];
-            updatedChat.push(message);
+    getChatExecute({ variables: { id: chatid } });
+  }, [chatid]);
 
-            setChatLog(updatedChat);
-          });
+  useEffect(() => {
+    if(!chatid || !connection) return;
 
-          connection.send("ConnectToChat", chatid_number);
-        })
-        .catch(e => console.log('Connection failed: ', e));
-    }
-  }, [connection]);
+    connection.start()
+      .then(_ => {
+        connection.on('ReceiveMessage', addNewMessage);
+        connection.send("ConnectToChat", chatid.toString());
+      })
+      .catch(e => console.log('Connection failed: ', e));
+  }, [connection, chatid]);
+
+  var addNewMessage = (message: ChatEntry) => {
+    setChatLog((chatLog) => {
+      const updatedChat = [...chatLog];
+      updatedChat.push(message);
+      return updatedChat;
+    });
+  }
 
   if (loading) {
     return (
@@ -67,7 +73,7 @@ const Chat: NextPage = () => {
     <Box borderStyle="solid" borderWidth="0.1em" display="flex" flexDirection="column">
       <ChatHeader chat={chat} />
       <Divider />
-      <Box flexGrow="1" overflowY="scroll" padding="0.4em 1em 1em 1em">
+      <Box flexGrow="1" overflowY="scroll" overflowX="hidden" padding="0.4em 1em 1em 1em">
         {chatLog.map((entry, i) => <ChatEntry key={i} entry={entry} />)}
       </Box>
       <Divider />
@@ -89,26 +95,28 @@ const ChatHeader: NextPage<{ chat: Chat }> = (props) => {
   )
 }
 
+//const isGoodConnection = (connection: HubConnection | null) => connection != null && connection.state == HubConnectionState.Connected;
 const ChatInput: NextPage<{connection: HubConnection | null}> = (props) => {
   var [newMessage,setNewMessage] = useState<string>("");
 
+  var sendMessage = () => {
+    props.connection?.send("SendMessage", newMessage);
+    setNewMessage("");
+  }
+
   return (
     <Box display="flex" margin="1em">
-      <Input marginRight="1em" placeholder="Type your message" onChange={(evt) => setNewMessage((_) => evt.target.value)}/>
-      <Button colorScheme='teal' onClick={() => sendMessage(props.connection as HubConnection, newMessage)}>Chat</Button>
+      <Input onKeyDown={(evt) => {if (evt.key == "Enter") sendMessage()}} marginRight="1em" placeholder="Type your message" value={newMessage} onChange={(evt) => setNewMessage((_) => evt.target.value)}/>
+      <Button colorScheme='teal' onClick={sendMessage}>Chat</Button>
     </Box>
   )
-}
-
-function sendMessage(connection: HubConnection, newMessage: string){
-  connection.send("SendMessage", newMessage);
 }
 
 const ChatEntry: React.FC<{ entry: ChatEntry }> = (props) => {
   return (
     <Box display="flex" marginTop="0.6em">
       <Text fontSize="15px" fontWeight='bold'>{props.entry.username}:</Text>
-      <Text fontSize="15px" marginLeft='0.4em'>{props.entry.message}</Text>
+      <Text fontSize="15px" marginLeft='0.4em' wordBreak="break-all">{props.entry.message}</Text>
     </Box>
   )
 }
@@ -117,22 +125,5 @@ type ChatEntry = {
   username: string,
   message: string,
 }
-
-const MockChatEntries: ChatEntry[] = [
-  { username: "GuyA", message: "Lorem Ipsum is simply dummy text of the printing and typesetting industry." },
-  { username: "GuyB", message: "Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. It has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. It was popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum passages, and more recently with desktop publishing software like Aldus PageMaker including versions of Lorem Ipsum." },
-  { username: "GuyC", message: "Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make." },
-  { username: "GuyD", message: "Lorem Ipsum is simply dummy text of the printing and typesetting industry." },
-  { username: "GuyD", message: "Lorem Ipsum is simply dummy text of the printing and typesetting industry." },
-  { username: "GuyD", message: "Lorem Ipsum is simply dummy text of the printing and typesetting industry." },
-  { username: "GuyD", message: "Lorem Ipsum is simply dummy text of the printing and typesetting industry." },
-  { username: "GuyD", message: "Lorem Ipsum is simply dummy text of the printing and typesetting industry." },
-  { username: "GuyD", message: "Lorem Ipsum is simply dummy text of the printing and typesetting industry." },
-  { username: "GuyD", message: "Lorem Ipsum is simply dummy text of the printing and typesetting industry." },
-  { username: "GuyD", message: "Lorem Ipsum is simply dummy text of the printing and typesetting industry." },
-  { username: "GuyD", message: "Lorem Ipsum is simply dummy text of the printing and typesetting industry." },
-  { username: "GuyD", message: "Lorem Ipsum is simply dummy text of the printing and typesetting industry." },
-  { username: "GuyD", message: "Lorem Ipsum is simply dummy text of the printing and typesetting industry." },
-]
 
 export default Chat
