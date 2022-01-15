@@ -82,7 +82,7 @@ const Chat: NextPage = () => {
   )
 }
 
-const ChatHeader: NextPage<{ chat: Chat }> = (props) => {
+const ChatHeader: React.FC<{ chat: Chat }> = (props) => {
   const router = useRouter()
   return (
     <Box display="flex" justifyContent="space-between" margin="1em">
@@ -96,7 +96,7 @@ const ChatHeader: NextPage<{ chat: Chat }> = (props) => {
 }
 
 //const isGoodConnection = (connection: HubConnection | null) => connection != null && connection.state == HubConnectionState.Connected;
-const ChatInput: NextPage<{connection: HubConnection | null}> = (props) => {
+const ChatInput: React.FC<{connection: HubConnection | null}> = (props) => {
   var [newMessage,setNewMessage] = useState<string>("");
 
   var sendMessage = () => {

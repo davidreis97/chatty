@@ -16,7 +16,7 @@ const Home: NextPage = () => {
       <Center h='100%' flexDir='column'>
         <Text as='i' fontSize='9xl' fontWeight='bold' marginBottom="0.6em">chatty</Text>
         <Box w="75%" maxW="50em" display="flex">
-          <Input value={state.title} onChange={(evt)=>{changeState((_) => ({title: evt.target.value}))}} size='lg' placeholder='Chat title'/>
+          <Input value={state.title} onChange={(evt)=>{changeState((_) => ({title: evt.target.value}))}} size='lg' placeholder='Chat room name'/>
           <CreateChatButton title={state.title}/>
         </Box>
       </Center>
